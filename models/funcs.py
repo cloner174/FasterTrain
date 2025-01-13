@@ -1,6 +1,6 @@
 # in the name of God
 #
-import tqdm
+from tqdm import tqdm
 import torch
 from ..utils.metrics import compute_pr_f1
 from pycocotools.cocoeval import COCOeval
