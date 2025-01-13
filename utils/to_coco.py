@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import json
 from PIL import Image
-from utils.utils import convert_bbox_format
+
 
 map_of_classes = {
   0: "Car",
@@ -217,5 +217,24 @@ def get_df_coco(label_dir, image_dir, dir_of='train'):
     
     return df
 
+
+
+def convert_bbox_format(boxes, image_size):
+    
+    converted_boxes = []
+    img_width, img_height = image_size
+    for box in boxes:
+        x_center, y_center, width, height = box
+        xmin = (x_center - width / 2) * img_width
+        ymin = (y_center - height / 2) * img_height
+        xmax = (x_center + width / 2) * img_width
+        ymax = (y_center + height / 2) * img_height
+        xmin = max(0, xmin)
+        ymin = max(0, ymin)
+        xmax = min(img_width, xmax)
+        ymax = min(img_height, ymax)
+        converted_boxes.append([xmin, ymin, xmax, ymax])
+    
+    return converted_boxes
 
 #cloner174

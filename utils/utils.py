@@ -42,16 +42,16 @@ def load_checkpoint(model, filename , device, optimizer = None, lr_scheduler = N
     if optimizer is not None and lr_scheduler is not None:
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         lr_scheduler.load_state_dict(checkpoint['lr_scheduler_state_dict'])
-        print(f'Model , Optimizer and lr scheduler are loaded from epoch: {checkpoint['epoch']}')
+        print(f"Model , Optimizer and lr scheduler are loaded from epoch: {checkpoint['epoch']}")
         return  model, optimizer, lr_scheduler
     
     elif optimizer is not None :
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        print(f'Model and Optimizer are loaded from epoch: {checkpoint['epoch']}')
+        print(f"Model and Optimizer are loaded from epoch: {checkpoint['epoch']}")
         return  model, optimizer
     
     else:
-        print(f'Model is loaded from epoch: {checkpoint['epoch']}')
+        print(f"Model is loaded from epoch: {checkpoint['epoch']}")
         return  model
 
 
@@ -66,26 +66,6 @@ def set_seed(seed=0, deterministic=True):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
     
-
-
-
-def convert_bbox_format(boxes, image_size):
-    
-    converted_boxes = []
-    img_width, img_height = image_size
-    for box in boxes:
-        x_center, y_center, width, height = box
-        xmin = (x_center - width / 2) * img_width
-        ymin = (y_center - height / 2) * img_height
-        xmax = (x_center + width / 2) * img_width
-        ymax = (y_center + height / 2) * img_height
-        xmin = max(0, xmin)
-        ymin = max(0, ymin)
-        xmax = min(img_width, xmax)
-        ymax = min(img_height, ymax)
-        converted_boxes.append([xmin, ymin, xmax, ymax])
-    
-    return converted_boxes
 
 
 
