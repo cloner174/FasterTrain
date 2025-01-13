@@ -2,6 +2,8 @@ train: ./data/train
 
 val: ./data/val
 
-nc: 4
+test: ./data/test
 
-names: ['class1', 'class2', 'class3', 'class4']
+nc: 12
+
+names: [ '__background__' , 'Car' , 'Different-Traffic-Sign', 'Green-Traffic-Light', 'Motorcycle', 'Pedestrian', 'Pedestrian-Crossing', 'Prohibition-Sign', 'Red-Traffic-Light','Speed-Limit-Sign', 'Truck', 'Warning-Sign' ]

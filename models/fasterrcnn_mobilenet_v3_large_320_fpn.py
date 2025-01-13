@@ -1,14 +1,19 @@
 #in the name of God
 #
 import torchvision
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+#from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection import FasterRCNN
-from torchvision.models.mobilenetv3 import mobilenet_v3_large
+from torchvision.models import mobilenet_v3_large, MobileNet_V3_Large_Weights
 
 
 def get_model(pretrained=True, num_classes=91):
     
-    backbone = mobilenet_v3_large(pretrained=pretrained).features
+    if pretrained:
+        weights = MobileNet_V3_Large_Weights.IMAGENET1K_V1
+    else:
+        weights = None
+    
+    backbone = mobilenet_v3_large(weights=weights).features
     backbone.out_channels = 960
     
     anchor_generator = torchvision.models.detection.rpn.AnchorGenerator(

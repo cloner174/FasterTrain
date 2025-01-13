@@ -18,20 +18,42 @@ def load_config(config_path):
 
 
 
-def save_checkpoint(state, filename):
+def save_checkpoint(epoch, model, optimizer, lr_scheduler, save_path, is_best = False):
     
-    torch.save(state, filename)
+    """Saves a checkpoint of the current model state."""
+    save_path = save_path.replace('.pth', '_best.pth') if is_best else save_path
+    
+    torch.save({
+        'epoch': epoch,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'lr_scheduler_state_dict': lr_scheduler.state_dict() if lr_scheduler else None,
+    }, save_path)
 
 
 
-def load_checkpoint(model, optimizer, filename, device):
+
+def load_checkpoint(model, filename , device, optimizer = None, lr_scheduler = None):
     
     checkpoint = torch.load(filename, map_location=device)
-    model.load_state_dict(checkpoint['model'])
-    optimizer.load_state_dict(checkpoint['optimizer'])
-    epoch = checkpoint['epoch']
     
-    return model, optimizer, epoch
+    model.load_state_dict(checkpoint['model_state_dict'])
+    
+    if optimizer is not None and lr_scheduler is not None:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        lr_scheduler.load_state_dict(checkpoint['lr_scheduler_state_dict'])
+        print(f'Model , Optimizer and lr scheduler are loaded from epoch: {checkpoint['epoch']}')
+        return  model, optimizer, lr_scheduler
+    
+    elif optimizer is not None :
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        print(f'Model and Optimizer are loaded from epoch: {checkpoint['epoch']}')
+        return  model, optimizer
+    
+    else:
+        print(f'Model is loaded from epoch: {checkpoint['epoch']}')
+        return  model
+
 
 
 
@@ -44,6 +66,27 @@ def set_seed(seed=0, deterministic=True):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
     
+
+
+
+def convert_bbox_format(boxes, image_size):
+    
+    converted_boxes = []
+    img_width, img_height = image_size
+    for box in boxes:
+        x_center, y_center, width, height = box
+        xmin = (x_center - width / 2) * img_width
+        ymin = (y_center - height / 2) * img_height
+        xmax = (x_center + width / 2) * img_width
+        ymax = (y_center + height / 2) * img_height
+        xmin = max(0, xmin)
+        ymin = max(0, ymin)
+        xmax = min(img_width, xmax)
+        ymax = min(img_height, ymax)
+        converted_boxes.append([xmin, ymin, xmax, ymax])
+    
+    return converted_boxes
+
 
 
 def csv_to_coco(csv_file, image_dir, output_json, categories):

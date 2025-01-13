@@ -2,7 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+trainer_old.py
+last.md
+last2.md
 # C extensions
 *.so
 

@@ -112,3 +112,4 @@ tofloat : true
 normalize : false
 min_visibility_for_transform : false
 num_workers : 8
+nc: 12

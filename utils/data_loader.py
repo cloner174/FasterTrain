@@ -1,3 +1,4 @@
+#
 import os
 import numpy as np
 import torch
@@ -8,7 +9,75 @@ from PIL import Image
 import json
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
+from pycocotools.coco import COCO
 #from utils.utils import csv_to_coco
+
+
+class TraficDataset(Dataset):
+
+    def __init__(self, annotation_file, root_dir, transform=None):
+        self.root_dir = root_dir
+        self.transform = transform
+        self.coco = COCO(annotation_file)
+        self.ids = list(sorted(self.coco.imgs.keys()))
+    
+    def __len__(self):
+        return len(self.ids)
+    
+    def __getitem__(self, idx):
+        
+        coco = self.coco
+        img_id = self.ids[idx]
+        ann_ids = coco.getAnnIds(imgIds=img_id)
+        coco_annotation = coco.loadAnns(ann_ids)
+        path = coco.loadImgs(img_id)[0]['file_name']
+        
+        img = Image.open(os.path.join(self.root_dir , path)).convert('RGB')
+        
+        num_objs = len(coco_annotation)
+        boxes = []
+        labels = []
+        for i in range(num_objs):
+                xmin = coco_annotation[i]['bbox'][0]
+                ymin = coco_annotation[i]['bbox'][1]
+                xmax = coco_annotation[i]['bbox'][2] #+ xmin
+                ymax = coco_annotation[i]['bbox'][3] #+ ymin
+                boxes.append([xmin, ymin, xmax, ymax])
+                labels.append(coco_annotation[i]['category_id'])
+        """
+        if self.transform:
+          img_np = np.array(img)
+          bboxes = boxes
+          labels_list = labels
+
+          transformed = self.transform(
+                image=img_np,
+                bboxes=bboxes,
+                labels=labels_list
+          )
+          img = transformed['image']
+          new_bboxes = transformed['bboxes']
+          new_labels = transformed['labels']
+
+          new_bboxes = torch.as_tensor(new_bboxes, dtype=torch.float32)
+          new_labels = torch.as_tensor(new_labels, dtype=torch.int64)
+
+          boxes = new_bboxes
+          labels = new_labels
+        else:
+          raise NotImplementedError('Sl')
+        """
+        
+        boxes = torch.as_tensor(boxes, dtype=torch.float32)
+        labels = torch.as_tensor(labels, dtype=torch.int64)
+        target = {'boxes': boxes, 'labels': labels, 'image_id': torch.tensor([img_id])}
+        
+        if self.transform:
+            img = self.transform(img)
+        
+        return img, target
+
+
 
 
 class CustomDataset(Dataset):
@@ -30,7 +99,7 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx):
         
         img_info = self.annotations['images'][idx]
-        img_path = os.path.join(self.img_dir, img_info['file_name'])
+        img_path = os.path.join(self.img_dir, 'images',img_info['file_name'])
         
         img = Image.open(img_path).convert("RGB")
         
@@ -41,8 +110,7 @@ class CustomDataset(Dataset):
                 boxes.append(ann['bbox'])            # [x, y, width, height]
                 labels.append(ann['category_id'])
         
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        labels = torch.as_tensor(labels, dtype=torch.int64)
+
         
         if self.transform:
             transformed = self.transform(image=np.array(img), bboxes=boxes, labels=labels)
@@ -51,6 +119,9 @@ class CustomDataset(Dataset):
             labels = transformed['labels']
         else:
             image_np = transforms.ToTensor()(img)
+        
+        boxes = torch.as_tensor(boxes, dtype=torch.float32)
+        labels = torch.as_tensor(labels, dtype=torch.int64)
         
         target = {}
         image_id = int( img_info['id'] )
@@ -61,25 +132,20 @@ class CustomDataset(Dataset):
         return image_np, target
 
 
-def get_transform(train, **args):
+def get_transform(train, img_size = 320, 
+                  min_visibility_for_transform = 0.3 ,
+                  tofloat = True, normalize=True,
+                  horizontalflip=True , colorjitter  = True, randombrightnesscontrast = True ):
     
     transforms_list = []
+    transforms_list.append ( A.Resize(width=img_size, height=img_size) )
+    
     if train:
-        resize = args.get('resize', False)
-        width = height = args.get('imgsz', None)
-        horizontalflip = args.get('horizontalflip', False)
-        colorjitter = args.get('colorjitter', False)
-        randombrightnesscontrast = args.get('randombrightnesscontrast', False)
-        tofloat = args.get('tofloat', False)
-        normalize = args.get('normalize', False)
-        min_visibility_for_transform = args.get('min_visibility_for_transform', 0.3)
         
-        if resize or width is not None and height is not None:
-            if width is None or height is None :
-                raise ValueError('Please Set size to some value in config when resize = True !')
-            transforms_list.append ( A.Resize(width=width, height=height) )
+        if img_size is not None and isinstance(img_size, int):
+            transforms_list.append ( A.Resize(width=img_size, height=img_size) )
         else:
-            print('Set imgsz to defualt : 640*640')
+            print('Set imgsz to defualt : 320*320')
             transforms_list.append ( A.Resize(width=640, height=640) )
         
         if horizontalflip :
@@ -91,22 +157,23 @@ def get_transform(train, **args):
         if randombrightnesscontrast :
             transforms_list.append(  A.RandomBrightnessContrast(p=0.3) )
         
-        if tofloat :
-            transforms_list.append(  A.ToFloat(max_value=255.0) )
-        
-        if normalize :
-            transforms_list.append(  A.Normalize(mean=(0.485, 0.456, 0.406),  std=(0.229, 0.224, 0.225) ) )
-        
+    if tofloat :
+        transforms_list.append(  A.ToFloat(max_value=255.0) )
+    if normalize :
+        transforms_list.append(  A.Normalize(mean=(0.485, 0.456, 0.406),  std=(0.229, 0.224, 0.225) ) )
+    
     transforms_list.append( ToTensorV2() )
     
     return A.Compose( transforms_list, bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels'], min_visibility=min_visibility_for_transform))
 
 
-def collate_fn(batch):
-    return tuple(zip(*batch))
 #def collate_fn(batch):
-#  batch = [data for data in batch if data is not None and data[0] is not None]
-#  return tuple(zip(*batch))
+#    return tuple(zip(*batch))
+
+def collate_fn(batch):
+  batch = [data for data in batch if data is not None and data[0] is not None]
+  return tuple(zip(*batch))
+
 
 def convert_bbox_format(boxes, image_size):
     
@@ -147,5 +214,6 @@ def get_data_loaders(data_config, batch_size, num_workers, **args):
                                  num_workers=num_workers, collate_fn=collate_fn)
     
     return data_loader_train, data_loader_val
+
 
 #cloner174
