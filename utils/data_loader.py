@@ -15,11 +15,12 @@ from pycocotools.coco import COCO
 
 class TraficDataset(Dataset):
 
-    def __init__(self, annotation_file, root_dir, transform=None):
+    def __init__(self, annotation_file, root_dir, transform=None, pass_img_and_target_to_transform = False):
         self.root_dir = root_dir
         self.transform = transform
         self.coco = COCO(annotation_file)
         self.ids = list(sorted(self.coco.imgs.keys()))
+        self.pass_img_and_target_to_transform = pass_img_and_target_to_transform
     
     def __len__(self):
         return len(self.ids)
@@ -72,7 +73,10 @@ class TraficDataset(Dataset):
         labels = torch.as_tensor(labels, dtype=torch.int64)
         target = {'boxes': boxes, 'labels': labels, 'image_id': torch.tensor([img_id])}
         
-        if self.transform:
+        if self.transform and pass_img_and_target_to_transform:
+            img, target = self.transform(img, target)
+        
+        elif self.transform:
             img = self.transform(img)
         
         return img, target
