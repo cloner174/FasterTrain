@@ -13,6 +13,7 @@ from pycocotools.coco import COCO
 #from utils.utils import csv_to_coco
 
 
+
 class TraficDataset(Dataset):
 
     def __init__(self, annotation_file, root_dir, transform=None, pass_img_and_target_to_transform = False):
@@ -82,6 +83,56 @@ class TraficDataset(Dataset):
         return img, target
 
 
+
+class TraficDataset2(Dataset):
+    
+    def __init__(self, annotation_file, root_dir, transform=None, pass_img_and_target_to_transform=False):
+        self.root_dir = root_dir
+        self.transform = transform
+        self.coco = COCO(annotation_file)
+        self.ids = list(sorted(self.coco.imgs.keys()))
+        self.pass_img_and_target_to_transform = pass_img_and_target_to_transform
+    
+    def __len__(self):
+        return len(self.ids)
+    
+    def __getitem__(self, idx):
+        
+        coco = self.coco
+        img_id = self.ids[idx]
+        ann_ids = coco.getAnnIds(imgIds=img_id)
+        coco_annotation = coco.loadAnns(ann_ids)
+        path = coco.loadImgs(img_id)[0]['file_name']
+        
+        img = Image.open(os.path.join(self.root_dir, path)).convert('RGB')
+        
+        num_objs = len(coco_annotation)
+        boxes = []
+        labels = []
+        for i in range(num_objs):
+            xmin = coco_annotation[i]['bbox'][0]
+            ymin = coco_annotation[i]['bbox'][1]
+            width = coco_annotation[i]['bbox'][2]
+            height = coco_annotation[i]['bbox'][3]
+            xmax = xmin + width
+            ymax = ymin + height
+            boxes.append([xmin, ymin, xmax, ymax])  # [x_min, y_min, x_max, y_max]
+            labels.append(coco_annotation[i]['category_id'])
+        
+        boxes = torch.as_tensor(boxes, dtype=torch.float32)
+        labels = torch.as_tensor(labels, dtype=torch.int64)
+        target = {
+            'boxes': boxes,
+            'labels': labels,
+            'image_id': torch.tensor([img_id])
+        }
+        
+        if self.transform and self.pass_img_and_target_to_transform:
+            img, target = self.transform(img, target)
+        elif self.transform:
+            img = self.transform(img)
+        
+        return img, target
 
 
 class CustomDataset(Dataset):
