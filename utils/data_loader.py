@@ -73,7 +73,7 @@ class TraficDataset(Dataset):
         labels = torch.as_tensor(labels, dtype=torch.int64)
         target = {'boxes': boxes, 'labels': labels, 'image_id': torch.tensor([img_id])}
         
-        if self.transform and pass_img_and_target_to_transform:
+        if self.transform and self.pass_img_and_target_to_transform:
             img, target = self.transform(img, target)
         
         elif self.transform:
